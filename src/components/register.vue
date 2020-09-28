@@ -18,7 +18,7 @@
             :rules="rules"
             label="Enter Name *"
           ></v-text-field>
-          <v-btn text color="blue" @click="host_game">Host Games</v-btn>
+          <v-btn text color="blue" @click="host_game">Host Game</v-btn>
           <v-col class="text-center">
             <v-spacer></v-spacer>
             <p>OR</p>
