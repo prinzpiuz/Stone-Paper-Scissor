@@ -132,10 +132,7 @@ export default {
     opponent: "",
     intiator_score: 0,
     joiner_score: 0,
-    intiator_button: null,
-    joiner_button: null,
     button_pressed: null,
-    opponent_button: null,
     cycle_end: false,
     your_stone: "far fa-hand-rock",
     your_paper: "far fa-hand-paper",
@@ -144,16 +141,17 @@ export default {
     opponent_paper: "far fa-hand-paper",
     opponent_scissors: "far fa-hand-scissors",
     change_color: false,
-    message: null
+    message: null,
+    game_icon_array: ["stone", "paper", "scissor"]
   }),
-  watch: {
-    timeout: function() {
-      if (this.timeout <= 0) {
-        this.stopTimer();
-        this.timeEnd = true;
-      }
-    }
-  },
+  // watch: {
+  //   timeout: function() {
+  //     if (this.timeout <= 0) {
+  //       this.stopTimer();
+  //       this.timeEnd = true;
+  //     }
+  //   }
+  // },
   methods: {
     clicked(data) {
       if (this.myTurn) {
@@ -216,6 +214,24 @@ export default {
     },
     turnEachSecond() {
       this.timeout -= 1;
+      if (this.timeout <= 0) {
+        if (this.$store.state.intiator) {
+          this.clicked(
+            this.game_icon_array[
+              Math.floor(Math.random() * this.game_icon_array.length)
+            ]
+          );
+        } else {
+          this.clicked(
+            this.game_icon_array[
+              Math.floor(Math.random() * this.game_icon_array.length)
+            ]
+          );
+        }
+        this.stopTimer();
+        this.timeEnd = true;
+        this.myTurn = false;
+      }
     },
     stopTimer() {
       clearInterval(this.runtime);
@@ -341,6 +357,10 @@ export default {
           }
         }
         if (msg.type == "score") {
+          // if (msg.timeout) {
+          //   this.myTurn = true;
+          //   this.timer();
+          // }
           this.intiator_score = msg.score.intiator;
           this.joiner_score = msg.score.joiner;
         }
