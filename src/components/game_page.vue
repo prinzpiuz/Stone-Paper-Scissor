@@ -8,9 +8,18 @@
     >
       <div>
         <div v-show="this.$store.state.intiator">
-          Share this code <a>{{ this.$store.state.game_code }}</a> to connect
-          player<br />
+          Share this link with your friends
+          {{ this.share_url }}
+          <div>
+            <span
+              title="Game Code. Click to copy"
+              v-clipboard:copy="this.share_url"
+            >
+              <a @click="this.copied">{{ this.copy_text }}</a>
+            </span>
+          </div>
         </div>
+        <div v-show="peer_close">Connection lost with peer !</div>
         waiting for player
         <v-progress-circular indeterminate color="red"></v-progress-circular>
       </div>
@@ -69,7 +78,9 @@
         <v-card max-width="200" flat class="mt-5">
           <v-list-item three-line>
             <v-list-item-content>
-              <div>{{ this.$store.state.name }}</div>
+              <div>
+                <b>{{ this.$store.state.name }}</b>
+              </div>
               <v-list-item-title class="mb-1">
                 {{ this.intiator_score }}</v-list-item-title
               >
@@ -80,7 +91,9 @@
         <v-card max-width="200" flat class="mt-5">
           <v-list-item three-line>
             <v-list-item-content>
-              <div>{{ this.$store.state.opponent_name }}</div>
+              <div>
+                <b>{{ this.$store.state.opponent_name }}</b>
+              </div>
               <v-list-item-title class="mb-1">
                 {{ this.joiner_score }}</v-list-item-title
               >
@@ -94,7 +107,9 @@
         <v-card max-width="200" flat class="mt-5">
           <v-list-item three-line>
             <v-list-item-content>
-              <div>{{ timeout }}</div>
+              <div>
+                <h1>{{ timeout }}</h1>
+              </div>
               <div>
                 <span v-if="myTurn">Your turn</span>
                 <span v-else>Waiting for opponent's move</span><br />
@@ -121,6 +136,8 @@ export default {
   // components: {
   // },
   data: () => ({
+    copy_text: "click to copy url",
+    share_url: "",
     p2pt: null,
     peer: null,
     timeout: null,
@@ -142,17 +159,13 @@ export default {
     opponent_scissors: "far fa-hand-scissors",
     change_color: false,
     message: null,
-    game_icon_array: ["stone", "paper", "scissor"]
+    game_icon_array: ["stone", "paper", "scissor"],
+    peer_close: false
   }),
-  // watch: {
-  //   timeout: function() {
-  //     if (this.timeout <= 0) {
-  //       this.stopTimer();
-  //       this.timeEnd = true;
-  //     }
-  //   }
-  // },
   methods: {
+    copied() {
+      this.copy_text = "copied !";
+    },
     clicked(data) {
       if (this.myTurn) {
         if (data === "stone") {
@@ -267,24 +280,9 @@ export default {
         $this.status = "";
       });
 
-      // this.p2pt.on("peerclose", (peer) => {
-      //   var player;
-      //   for (var id in $this.players) {
-      //     player = $this.players[id];
-      //     if (player.conn && player.conn.id === peer.id) {
-      //       var name = $this.players[id].name;
-
-      //       delete $this.playerTurns[id];
-      //       delete $this.players[id];
-
-      //       $this.chatAddMsg("!game!", `Connection lost with ${name}`);
-
-      //       $this.fixPlayerTurns();
-
-      //       break;
-      //     }
-      //   }
-      // });
+      this.p2pt.on("peerclose", () => {
+        this.peer_close = true;
+      });
 
       this.p2pt.on("msg", (peer, msg) => {
         msg = JSON.parse(msg);
@@ -357,25 +355,26 @@ export default {
           }
         }
         if (msg.type == "score") {
-          // if (msg.timeout) {
-          //   this.myTurn = true;
-          //   this.timer();
-          // }
           this.intiator_score = msg.score.intiator;
           this.joiner_score = msg.score.joiner;
         }
       });
 
-      // this.p2pt.on("trackerconnect", () => {
-      //   // trackerConnected = true;
-      // });
+      this.p2pt.on("trackerconnect", () => {
+        this.peer_close = false;
+      });
 
       window.p2pt = this.p2pt;
     }
   },
   mounted() {
     this.init();
-    window.addEventListener("beforeunload", this.onBeforeUnload);
+    this.share_url = this.$URL + this.$store.state.game_code;
+  },
+  beforeDestroy() {
+    if (this.p2pt) {
+      this.p2pt.destroy();
+    }
   }
 };
 </script>

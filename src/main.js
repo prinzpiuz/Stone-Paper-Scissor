@@ -1,5 +1,6 @@
 import Vue from "vue";
 import Vuex from "vuex";
+import VueClipboard from "vue-clipboard2";
 import App from "./App.vue";
 import router from "./router";
 import "vuetify/dist/vuetify.min.css";
@@ -7,9 +8,12 @@ import vuetify from "./plugins/vuetify";
 Vue.config.productionTip = false;
 
 Vue.use(Vuex);
+Vue.use(VueClipboard);
 
 Vue.prototype.$GAME_CODE_LENGTH = 4;
 Vue.prototype.$TIMER = 20;
+Vue.prototype.$URL = "https://silly-fermat-36c0e6.netlify.app/#/join_game/?g=";
+// Vue.prototype.$URL = "192.168.43.170:8080/#/join_game/?g=";
 
 var announceURLs = [
   "wss://wsswt.herokuapp.com/",
