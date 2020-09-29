@@ -13,22 +13,22 @@ export default new Router({
     {
       path: "/",
       name: "register",
-      component: Register,
+      component: Register
     },
     {
       path: "/game",
       name: "game",
-      component: Game,
+      component: Game
     },
     {
       path: "/join_game",
       name: "join_game",
-      component: Join,
+      component: Join
     },
     {
       path: "*",
       name: "404",
-      component: NotFound,
-    },
-  ],
+      component: NotFound
+    }
+  ]
 });
