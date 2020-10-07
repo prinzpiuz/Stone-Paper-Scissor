@@ -43,7 +43,9 @@
       </ul>
       <ul>
         <li>
-          <a href=""><i class="fab fa-github"></i></a><br />
+          <a href="https://github.com/prinzpiuz/Stone-Paper-Scissor"
+            ><i class="fab fa-github"></i></a
+          ><br />
         </li>
       </ul>
     </div>
