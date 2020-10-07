@@ -27,6 +27,16 @@
         </v-list-item-content>
       </v-list-item>
     </v-card>
+    <div class="container">
+      <a @click="goAbout">about</a>
+    </div>
+    <div class="container">
+      <a
+        href="https://github.com/prinzpiuz/Stone-Paper-Scissor/blob/master/LICENSE"
+        >Licence</a
+      >
+    </div>
+    <p>No Server,No Storage,Just Peer to Peer</p>
     <v-btn @click="change_theme" text absolute top right>
       <v-icon size="20" :color="icon_color">far fa-lightbulb</v-icon>
     </v-btn>
@@ -68,12 +78,20 @@ export default {
         this.$vuetify.theme.dark = true;
         this.icon_color = "white";
       }
+    },
+    goAbout() {
+      this.$router.push({ name: "about" });
     }
   }
 };
 </script>
-<style>
+<style scoped>
 .theme--light.v-divider {
   border-color: rgba(0, 0, 0, 0.12) !important;
+}
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
