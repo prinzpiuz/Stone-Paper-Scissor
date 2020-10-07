@@ -28,15 +28,26 @@
       </v-list-item>
     </v-card>
     <div class="container">
-      <a @click="goAbout">about</a>
+      <ul>
+        <li>
+          <a @click="goAbout"><i class="fas fa-hands-helping"></i></a>
+        </li>
+      </ul>
+      <ul>
+        <li>
+          <a
+            href="https://github.com/prinzpiuz/Stone-Paper-Scissor/blob/master/LICENSE"
+            >Licence</a
+          >
+        </li>
+      </ul>
+      <ul>
+        <li>
+          <a href=""><i class="fab fa-github"></i></a><br />
+        </li>
+      </ul>
     </div>
-    <div class="container">
-      <a
-        href="https://github.com/prinzpiuz/Stone-Paper-Scissor/blob/master/LICENSE"
-        >Licence</a
-      >
-    </div>
-    <p>No Server,No Storage,Just Peer to Peer</p>
+    No Server, No Storage, Just Peer to Peer
     <v-btn @click="change_theme" text absolute top right>
       <v-icon size="20" :color="icon_color">far fa-lightbulb</v-icon>
     </v-btn>
@@ -93,5 +104,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+a {
+  margin-right: 10px;
+  text-decoration: none;
+}
+ul {
+  list-style-type: none;
 }
 </style>
