@@ -21,7 +21,7 @@ var announceURLs = [
   "ws://127.0.0.1:8085",
   "wss://tracker.sloppyta.co:443/announce",
   "wss://tracker.novage.com.ua:443/announce",
-  "wss://tracker.btorrent.xyz:443/announce"
+  "wss://tracker.btorrent.xyz:443/announce",
 ];
 
 if (window.location.hostname === "localhost") {
@@ -39,7 +39,7 @@ window.$ADD_TRACKER = function(trackerURL) {
   }
 };
 
-Vue.prototype.isGameCodeValid = gameCode => {
+Vue.prototype.isGameCodeValid = (gameCode) => {
   try {
     if (gameCode.length !== Vue.prototype.$GAME_CODE_LENGTH) {
       return false;
@@ -58,11 +58,15 @@ const store = new Vuex.Store({
     opponent_name: "",
     game_code: "",
     intiator: false,
-    joiner: false
+    joiner: false,
+    rounds: 0,
   },
   mutations: {
     setName(state, value) {
       state.name = value;
+    },
+    setRounds(state, value) {
+      state.rounds = value;
     },
     gameCode(state, value) {
       state.game_code = value;
@@ -75,13 +79,13 @@ const store = new Vuex.Store({
     },
     setOpponent(state, value) {
       state.opponent_name = value;
-    }
-  }
+    },
+  },
 });
 
 new Vue({
-  render: h => h(App),
+  render: (h) => h(App),
   router,
   vuetify,
-  store
+  store,
 }).$mount("#app");
