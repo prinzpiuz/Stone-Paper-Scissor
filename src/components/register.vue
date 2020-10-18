@@ -18,6 +18,14 @@
             :rules="rules"
             label="Enter Name *"
           ></v-text-field>
+          <v-alert type="error" v-show="alert" dismissible>
+            Enter Number of Rounds
+          </v-alert>
+          <v-text-field
+            v-model="rounds"
+            :rules="rules"
+            label="Enter Number of Rounds *"
+          ></v-text-field>
           <v-btn text color="blue" @click="host_game">Host Game</v-btn>
           <v-col class="text-center">
             <v-spacer></v-spacer>
@@ -61,15 +69,17 @@ export default {
     light: false,
     alert: false,
     name: "",
+    rounds: 1,
     icon_color: "black",
     rules: [value => !!value || "Required."]
   }),
   methods: {
     host_game() {
-      if (!this.name) {
+      if (!this.name && !this.rounds) {
         this.alert = true;
       } else {
         this.$store.commit("setName", this.name);
+        this.$store.commit("setRounds", this.rounds);
         let game_code = Math.random()
           .toString(36)
           .substr(2, this.$GAME_CODE_LENGTH);
