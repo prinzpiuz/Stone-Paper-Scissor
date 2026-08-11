@@ -1,25 +1,18 @@
 <template>
   <v-container fluid>
-    <v-banner
-      v-show="!player_connected"
-      single-line
-      transition="slide-y-transition"
-      tile
-    >
+    <v-banner v-if="!opponentConnected">
       <div>
-        <div v-show="this.$store.state.intiator">
-          Share this link with your friends
-          {{ this.share_url }}
+        <div v-if="store.state.isHost">
+          Share this link with your friend
+          <div>{{ shareUrl }}</div>
           <div>
-            <span
-              title="Game Code. Click to copy"
-              v-clipboard:copy="this.share_url"
-            >
-              <a @click="this.copied">{{ this.copy_text }}</a>
+            Game code: <b>{{ store.state.gameCode }}</b>
+            <span title="Click to copy the invite link">
+              <a class="copy-link" @click="copyShareUrl">{{ copyText }}</a>
             </span>
           </div>
         </div>
-        <div v-show="peer_close">Connection lost with peer !</div>
+        <div v-if="peerLost">Connection lost with peer !</div>
         waiting for player
         <v-progress-circular indeterminate color="red"></v-progress-circular>
       </div>
@@ -27,19 +20,13 @@
     <v-row>
       <v-container fluid>
         <v-row no-gutters>
-          <v-col class="text-center">
-            <v-card class="pa-2" flat tile @click="clicked('stone')">
-              <v-icon size="100" color="red">{{ this.your_stone }}</v-icon>
-            </v-card>
-          </v-col>
-          <v-col class="text-center">
-            <v-card class="pa-2" flat tile @click="clicked('paper')">
-              <v-icon size="100" color="blue">{{ this.your_paper }}</v-icon>
-            </v-card>
-          </v-col>
-          <v-col class="text-center">
-            <v-card class="pa-2" flat tile @click="clicked('scissors')">
-              <v-icon size="100" color="green">{{ this.your_scissors }}</v-icon>
+          <v-col v-for="move in MOVES" :key="move" class="text-center">
+            <v-card class="pa-2" flat tile @click="submitMove(move)">
+              <i
+                :class="handClass(move, myMove)"
+                class="hand-icon"
+                :style="{ color: MOVE_COLORS[move] }"
+              ></i>
             </v-card>
           </v-col>
         </v-row>
@@ -48,21 +35,13 @@
     <v-row>
       <v-container fluid class="opponent">
         <v-row no-gutters>
-          <v-col class="text-center">
+          <v-col v-for="move in MOVES" :key="move" class="text-center">
             <v-card class="pa-2" flat tile>
-              <v-icon size="100" color="red">{{ this.opponent_stone }}</v-icon>
-            </v-card>
-          </v-col>
-          <v-col class="text-center">
-            <v-card class="pa-2" flat tile>
-              <v-icon size="100" color="blue">{{ this.opponent_paper }}</v-icon>
-            </v-card>
-          </v-col>
-          <v-col class="text-center">
-            <v-card class="pa-2" flat tile>
-              <v-icon size="100" color="green">{{
-                this.opponent_scissors
-              }}</v-icon>
+              <i
+                :class="handClass(move, revealed ? opponentMove : null)"
+                class="hand-icon"
+                :style="{ color: MOVE_COLORS[move] }"
+              ></i>
             </v-card>
           </v-col>
         </v-row>
@@ -75,316 +54,253 @@
         flat
         tile
       >
-        <v-card max-width="200" flat class="mt-5">
-          <v-list-item three-line>
-            <v-list-item-content>
-              <div>
-                <b>{{ this.$store.state.name }}</b>
-              </div>
-              <v-list-item-title class="mb-1">
-                {{ this.intiator_score }}</v-list-item-title
-              >
-            </v-list-item-content>
-          </v-list-item>
+        <v-card max-width="200" flat class="mt-5 pa-3">
+          <div>
+            <b>{{ store.state.name }}</b>
+          </div>
+          <div class="mb-1">{{ myScore }}</div>
         </v-card>
         vs
-        <v-card max-width="200" flat class="mt-5">
-          <v-list-item three-line>
-            <v-list-item-content>
-              <div>
-                <b>{{ this.$store.state.opponent_name }}</b>
-              </div>
-              <v-list-item-title class="mb-1">
-                {{ this.joiner_score }}</v-list-item-title
-              >
-            </v-list-item-content>
-          </v-list-item>
+        <v-card max-width="200" flat class="mt-5 pa-3">
+          <div>
+            <b>{{ store.state.opponentName || "opponent" }}</b>
+          </div>
+          <div class="mb-1">{{ opponentScore }}</div>
         </v-card>
       </v-card>
     </div>
     <div>
-      <v-card class="d-flex  justify-space-around" height="150" flat tile>
-        <v-card max-width="200" flat class="mt-5">
-          <v-list-item three-line>
-            <v-list-item-content>
-              <div>
-                <h1>{{ timeout }}</h1>
-              </div>
-              <div>
-                <span v-if="myTurn">Your turn</span>
-                <span v-else>Waiting for opponent's move</span><br />
-                <span v-show="timeEnd">your time ended</span>
-              </div>
-            </v-list-item-content>
-          </v-list-item>
+      <v-card class="d-flex justify-space-around" height="150" flat tile>
+        <v-card max-width="200" flat class="mt-5 pa-3">
+          <div>
+            <h1>{{ timeLeft }}</h1>
+          </div>
+          <div>{{ statusText }}</div>
         </v-card>
       </v-card>
     </div>
   </v-container>
 </template>
-<script>
-const P2PT = require("p2pt");
-const score_calculator = {
-  stonepaper: 0,
-  stonescissors: 1,
-  paperstone: 1,
-  paperscissors: 0,
-  scissorsstone: 0,
-  scissorspaper: 1
+
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useStore } from "vuex";
+import P2PT from "p2pt";
+import { GAME_ANNOUNCE_URLS, REVEAL_MS, TIMER } from "@/constants";
+import { DRAW, MOVES, WIN, isMove, outcome, randomMove } from "@/game";
+
+const MOVE_COLORS = { stone: "red", paper: "blue", scissors: "green" };
+const MOVE_ICONS = {
+  stone: "fa-hand-rock",
+  paper: "fa-hand-paper",
+  scissors: "fa-hand-scissors"
 };
-export default {
-  // components: {
-  // },
-  data: () => ({
-    copy_text: "click to copy url",
-    share_url: "",
-    p2pt: null,
-    peer: null,
-    timeout: null,
-    myTurn: false,
-    timeEnd: false,
-    runtime: null,
-    player_connected: false,
-    gameFinished: false,
-    opponent: "",
-    intiator_score: 0,
-    joiner_score: 0,
-    button_pressed: null,
-    cycle_end: false,
-    your_stone: "far fa-hand-rock",
-    your_paper: "far fa-hand-paper",
-    your_scissors: "far fa-hand-scissors",
-    opponent_stone: "far fa-hand-rock",
-    opponent_paper: "far fa-hand-paper",
-    opponent_scissors: "far fa-hand-scissors",
-    change_color: false,
-    message: null,
-    game_icon_array: ["stone", "paper", "scissor"],
-    peer_close: false
-  }),
-  methods: {
-    copied() {
-      this.copy_text = "copied !";
-    },
-    clicked(data) {
-      if (this.myTurn) {
-        if (data === "stone") {
-          this.your_stone = "fas fa-hand-rock";
-        } else if (data === "paper") {
-          this.your_paper = "fas fa-hand-paper";
-        } else {
-          this.your_scissors = "fas fa-hand-scissors";
-        }
-        if (!this.$store.state.intiator) {
-          if (this.message.button === "stone") {
-            this.opponent_stone = "fas fa-hand-rock";
-          } else if (this.message.button === "paper") {
-            this.opponent_paper = "fas fa-hand-paper";
-          } else {
-            this.opponent_scissors = "fas fa-hand-scissors";
-          }
-        }
 
-        this.button_pressed = data;
-        if (this.$store.state.intiator) {
-          this.p2pt.send(
-            this.peer,
-            JSON.stringify({
-              type: "move",
-              button: data,
-              intiator: true,
-              cycle_end: false
-            })
-          );
-        } else {
-          this.p2pt.send(
-            this.peer,
-            JSON.stringify({
-              type: "move",
-              button: data,
-              intiator: false,
-              cycle_end: true
-            })
-          );
-          setTimeout(() => {
-            this.your_stone = "far fa-hand-rock";
-            this.your_paper = "far fa-hand-paper";
-            this.your_scissors = "far fa-hand-scissors";
-            this.opponent_stone = "far fa-hand-rock";
-            this.opponent_paper = "far fa-hand-paper";
-            this.opponent_scissors = "far fa-hand-scissors";
-          }, 3000);
-        }
+const store = useStore();
+const router = useRouter();
 
-        this.stopTimer();
-        this.myTurn = false;
-      }
-    },
+const copyText = ref("click to copy url");
+const timeLeft = ref(TIMER);
+const timedOut = ref(false);
+const opponentConnected = ref(false);
+const peerLost = ref(false);
+const myScore = ref(0);
+const opponentScore = ref(0);
+const myMove = ref(null);
+const opponentMove = ref(null);
+const revealed = ref(false);
 
-    timer() {
-      this.timeout = this.$TIMER;
-      this.runtime = setInterval(this.turnEachSecond, 1000);
-    },
-    turnEachSecond() {
-      this.timeout -= 1;
-      if (this.timeout <= 0) {
-        if (this.$store.state.intiator) {
-          this.clicked(
-            this.game_icon_array[
-              Math.floor(Math.random() * this.game_icon_array.length)
-            ]
-          );
-        } else {
-          this.clicked(
-            this.game_icon_array[
-              Math.floor(Math.random() * this.game_icon_array.length)
-            ]
-          );
-        }
-        this.stopTimer();
-        this.timeEnd = true;
-        this.myTurn = false;
-      }
-    },
-    stopTimer() {
-      clearInterval(this.runtime);
-      this.timeout = 0;
-    },
-    init() {
-      this.connect();
-    },
-    connect() {
-      this.p2pt = new P2PT(
-        this.$GAME_ANNOUNCE_URLS,
-        this.$store.state.game_code
-      );
-      this.p2pt.start();
+let p2pt = null;
+let peer = null;
+let tickHandle = null;
+let revealHandle = null;
+// Rounds are numbered so a move that arrives while the previous result is still
+// on screen is held back instead of being applied to the wrong round.
+let roundNumber = 0;
+const bufferedMoves = new Map();
 
-      const $this = this;
+const shareUrl = computed(() => {
+  const href = router.resolve({
+    name: "join_game",
+    query: { g: store.state.gameCode }
+  }).href;
+  return new URL(href, window.location.href).href;
+});
 
-      this.p2pt.on("peerconnect", peer => {
-        this.peer = peer;
-        if (this.gameFinished) {
-          return;
-        }
+const statusText = computed(() => {
+  if (!opponentConnected.value) return "Waiting for opponent to join";
+  if (revealed.value) return roundResultText.value;
+  if (myMove.value === null) return "Your turn";
+  return "Waiting for opponent's move";
+});
 
-        $this.p2pt.send(
-          peer,
-          JSON.stringify({
-            type: "join",
-            name: this.$store.state.name
-          })
-        );
-        this.player_connected = true;
-        $this.gameStatus = "joined";
-        $this.status = "";
-      });
+const roundResultText = computed(() => {
+  const result = outcome(myMove.value, opponentMove.value);
+  if (result === DRAW) return "Draw";
+  const prefix = timedOut.value ? "Time up — " : "";
+  return prefix + (result === WIN ? "You win this round" : "Opponent wins this round");
+});
 
-      this.p2pt.on("peerclose", () => {
-        this.peer_close = true;
-      });
+function handClass(move, chosen) {
+  // Solid hand marks the played move, outlined hands are the ones not picked.
+  return `${chosen === move ? "fas" : "far"} ${MOVE_ICONS[move]}`;
+}
 
-      this.p2pt.on("msg", (peer, msg) => {
-        msg = JSON.parse(msg);
-        this.message = msg;
-        if (msg.type == "join") {
-          this.$store.commit("setOpponent", msg.name);
-          if (this.$store.state.intiator) {
-            this.myTurn = true;
-            this.timer();
-          }
-        }
-        if (msg.type == "move") {
-          if (msg.cycle_end) {
-            if (msg.button === "stone") {
-              this.opponent_stone = "fas fa-hand-rock";
-            } else if (msg.button === "paper") {
-              this.opponent_paper = "fas fa-hand-paper";
-            } else {
-              this.opponent_scissors = "fas fa-hand-scissors";
-            }
-            if (this.button_pressed === msg.button) {
-              this.intiator_score += 0;
-              this.joiner_score += 0;
-            } else {
-              let score_card = this.button_pressed + msg.button;
-              this.intiator_score += score_calculator[score_card];
-              if (score_calculator[score_card] == 0) {
-                this.joiner_score += 1;
-              } else {
-                this.joiner_score += 0;
-              }
-            }
-            this.p2pt.send(
-              this.peer,
-              JSON.stringify({
-                type: "score",
-                score: {
-                  joiner: this.intiator_score,
-                  intiator: this.joiner_score
-                }
-              })
-            );
-            setTimeout(() => {
-              this.your_stone = "far fa-hand-rock";
-              this.your_paper = "far fa-hand-paper";
-              this.your_scissors = "far fa-hand-scissors";
-              this.opponent_stone = "far fa-hand-rock";
-              this.opponent_paper = "far fa-hand-paper";
-              this.opponent_scissors = "far fa-hand-scissors";
-            }, 3000);
-            this.myTurn = true;
-            this.timer();
-          } else {
-            this.myTurn = true;
-            this.timer();
-            setTimeout(null, this.$TIMER * 1000);
-
-            if (this.button_pressed === msg.button) {
-              this.intiator_score += 0;
-              this.joiner_score += 0;
-            } else {
-              let score_card = msg.button + this.button_pressed;
-              this.intiator_score += score_calculator[score_card];
-              if (score_calculator[score_card] == 0) {
-                this.joiner_score += 1;
-              } else {
-                this.joiner_score += 0;
-              }
-            }
-          }
-        }
-        if (msg.type == "score") {
-          this.intiator_score = msg.score.intiator;
-          this.joiner_score = msg.score.joiner;
-        }
-      });
-
-      this.p2pt.on("trackerconnect", () => {
-        this.peer_close = false;
-      });
-
-      window.p2pt = this.p2pt;
-    }
-  },
-  mounted() {
-    this.init();
-    this.share_url = this.$URL + this.$store.state.game_code;
-  },
-  beforeDestroy() {
-    if (this.p2pt) {
-      this.p2pt.destroy();
-    }
+function copyShareUrl() {
+  if (!navigator.clipboard) {
+    copyText.value = "copy it manually";
+    return;
   }
-};
+  navigator.clipboard.writeText(shareUrl.value).then(
+    () => {
+      copyText.value = "copied !";
+    },
+    () => {
+      copyText.value = "copy it manually";
+    }
+  );
+}
+
+function send(payload) {
+  if (!peer) return;
+  p2pt.send(peer, JSON.stringify(payload));
+}
+
+function startRound() {
+  clearTimers();
+  myMove.value = null;
+  // A move for this round may already have arrived during the reveal pause.
+  opponentMove.value = bufferedMoves.get(roundNumber) ?? null;
+  bufferedMoves.delete(roundNumber);
+  revealed.value = false;
+  timedOut.value = false;
+  timeLeft.value = TIMER;
+  tickHandle = setInterval(tick, 1000);
+}
+
+function tick() {
+  timeLeft.value -= 1;
+  if (timeLeft.value > 0) return;
+
+  timeLeft.value = 0;
+  clearInterval(tickHandle);
+  tickHandle = null;
+  if (myMove.value === null) {
+    timedOut.value = true;
+    submitMove(randomMove());
+  }
+}
+
+function submitMove(move) {
+  // One move per round, and only once there is somebody to play against.
+  if (!opponentConnected.value || revealed.value || myMove.value !== null) return;
+
+  myMove.value = move;
+  send({ type: "move", round: roundNumber, move });
+  resolveRound();
+}
+
+function receiveMove(round, move) {
+  if (!isMove(move)) return;
+  if (round === roundNumber) {
+    opponentMove.value = move;
+    resolveRound();
+  } else if (round > roundNumber) {
+    bufferedMoves.set(round, move);
+  }
+}
+
+function resolveRound() {
+  if (myMove.value === null || opponentMove.value === null) return;
+
+  clearTimers();
+  revealed.value = true;
+
+  // Both peers score the same pair of moves, so the totals stay in sync
+  // without either side having to trust a score sent over the wire.
+  const result = outcome(myMove.value, opponentMove.value);
+  if (result === WIN) myScore.value += 1;
+  else if (result !== DRAW) opponentScore.value += 1;
+
+  roundNumber += 1;
+  revealHandle = setTimeout(startRound, REVEAL_MS);
+}
+
+function clearTimers() {
+  clearInterval(tickHandle);
+  clearTimeout(revealHandle);
+  tickHandle = null;
+  revealHandle = null;
+}
+
+function onPeerConnect(connectedPeer) {
+  // The room is a two player game: ignore anybody joining after the opponent.
+  if (peer && peer !== connectedPeer) return;
+  peer = connectedPeer;
+  peerLost.value = false;
+  send({ type: "hello", name: store.state.name });
+}
+
+function onPeerClose(closedPeer) {
+  if (closedPeer !== peer) return;
+  peer = null;
+  opponentConnected.value = false;
+  peerLost.value = true;
+  clearTimers();
+  // The reconnecting peer restarts at round 0, so drop any stale round state.
+  roundNumber = 0;
+  bufferedMoves.clear();
+}
+
+function onMessage(fromPeer, raw) {
+  if (fromPeer !== peer) return;
+
+  let msg;
+  try {
+    msg = JSON.parse(raw);
+  } catch (e) {
+    return;
+  }
+
+  if (msg.type === "hello") {
+    store.commit("setOpponentName", String(msg.name || "opponent").slice(0, 32));
+    if (!opponentConnected.value) {
+      opponentConnected.value = true;
+      startRound();
+    }
+  } else if (msg.type === "move") {
+    receiveMove(msg.round, msg.move);
+  }
+}
+
+onMounted(() => {
+  p2pt = new P2PT(GAME_ANNOUNCE_URLS, store.state.gameCode);
+  p2pt.on("peerconnect", onPeerConnect);
+  p2pt.on("peerclose", onPeerClose);
+  p2pt.on("msg", onMessage);
+  p2pt.start();
+});
+
+onBeforeUnmount(() => {
+  clearTimers();
+  if (p2pt) p2pt.destroy();
+  p2pt = null;
+  peer = null;
+});
 </script>
-<style>
+
+<style scoped>
 .opponent {
   position: absolute;
   bottom: 45px;
 }
-.player1 {
-  position: fixed;
-  align-items: center;
+.hand-icon {
+  font-size: 100px;
+}
+.copy-link {
+  cursor: pointer;
+  margin-left: 10px;
+  text-decoration: underline;
 }
 </style>

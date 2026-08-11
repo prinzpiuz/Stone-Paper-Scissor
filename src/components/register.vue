@@ -1,107 +1,110 @@
 <template>
-  <v-container fill-height>
+  <v-container class="fill-height">
     <v-col class="text-center">
-      <v-icon size="200" color="red">far fa-hand-rock</v-icon
-      ><v-divider class="mx-5" vertical></v-divider
-      ><v-icon size="200" color="blue">far fa-hand-paper</v-icon
-      ><v-divider class="mx-5" vertical></v-divider
-      ><v-icon size="200" color="green">far fa-hand-scissors</v-icon>
+      <template v-for="(move, index) in MOVES" :key="move">
+        <v-divider v-if="index > 0" class="mx-5" vertical></v-divider>
+        <i :class="handClass(move)" class="icon-hand" :style="{ color: MOVE_COLORS[move] }"></i>
+      </template>
     </v-col>
     <v-card class="mx-auto container" flat>
-      <v-list-item three-line>
-        <v-list-item-content>
-          <v-alert type="error" v-show="alert" dismissible>
-            Enter name
-          </v-alert>
-          <v-text-field
-            v-model="name"
-            :rules="rules"
-            label="Enter Name *"
-          ></v-text-field>
-          <v-btn text color="blue" @click="host_game">Host Game</v-btn>
-          <v-col class="text-center">
-            <v-spacer></v-spacer>
-            <p>OR</p>
-            <v-btn text color="green" @click="join_game">Join Game</v-btn>
-          </v-col>
-        </v-list-item-content>
-      </v-list-item>
+      <div class="pa-4">
+        <v-text-field
+          v-model="name"
+          label="Enter Name *"
+          :error-messages="nameError"
+          @keyup.enter="hostGame"
+        ></v-text-field>
+        <v-btn variant="text" color="blue" @click="hostGame">Host Game</v-btn>
+        <v-col class="text-center">
+          <v-spacer></v-spacer>
+          <p>OR</p>
+          <v-btn variant="text" color="green" @click="goJoin">Join Game</v-btn>
+        </v-col>
+      </div>
     </v-card>
     <div class="container">
       <ul>
         <li>
-          <a @click="goAbout"><i class="fas fa-hands-helping"></i></a>
+          <router-link :to="{ name: 'about' }" title="How to play">
+            <i class="fas fa-hands-helping"></i>
+          </router-link>
         </li>
       </ul>
       <ul>
         <li>
-          <a
-            href="https://github.com/prinzpiuz/Stone-Paper-Scissor/blob/master/LICENSE"
-            >Licence</a
-          >
+          <a :href="`${REPO_URL}/blob/master/LICENSE`">Licence</a>
         </li>
       </ul>
       <ul>
         <li>
-          <a href="https://github.com/prinzpiuz/Stone-Paper-Scissor"
-            ><i class="fab fa-github"></i></a
-          ><br />
+          <a :href="REPO_URL" title="Source on GitHub"><i class="fab fa-github"></i></a>
         </li>
       </ul>
     </div>
     No Server, No Storage, Just Peer to Peer
-    <v-btn @click="change_theme" text absolute top right>
-      <v-icon size="20" :color="icon_color">far fa-lightbulb</v-icon>
+    <v-btn
+      variant="text"
+      class="theme-toggle"
+      :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
+      @click="toggleTheme"
+    >
+      <i class="far fa-lightbulb" :style="{ color: isDark ? 'white' : 'black', fontSize: '20px' }"></i>
     </v-btn>
   </v-container>
 </template>
-<script>
-export default {
-  data: () => ({
-    light: false,
-    alert: false,
-    name: "",
-    icon_color: "black",
-    rules: [value => !!value || "Required."]
-  }),
-  methods: {
-    host_game() {
-      if (!this.name) {
-        this.alert = true;
-      } else {
-        this.$store.commit("setName", this.name);
-        let game_code = Math.random()
-          .toString(36)
-          .substr(2, this.$GAME_CODE_LENGTH);
-        this.$store.commit("gameCode", game_code);
-        this.$store.commit("setIntiator");
-        this.$router.push({ name: "game" });
-      }
-    },
-    join_game() {
-      this.$router.push({ name: "join_game" });
-    },
-    change_theme() {
-      if (this.light) {
-        this.light = !this.light;
-        this.$vuetify.theme.dark = false;
-        this.icon_color = "black";
-      } else {
-        this.light = !this.light;
-        this.$vuetify.theme.dark = true;
-        this.icon_color = "white";
-      }
-    },
-    goAbout() {
-      this.$router.push({ name: "about" });
-    }
-  }
+
+<script setup>
+import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useStore } from "vuex";
+import { useTheme } from "vuetify";
+import { MOVES, newGameCode } from "@/game";
+
+const REPO_URL = "https://github.com/prinzpiuz/Stone-Paper-Scissor";
+const MOVE_COLORS = { stone: "red", paper: "blue", scissors: "green" };
+const MOVE_ICONS = {
+  stone: "fa-hand-rock",
+  paper: "fa-hand-paper",
+  scissors: "fa-hand-scissors"
 };
-</script>
-<style scoped>
-.theme--light.v-divider {
-  border-color: rgba(0, 0, 0, 0.12) !important;
+
+const router = useRouter();
+const store = useStore();
+const theme = useTheme();
+
+const name = ref(store.state.name);
+const nameError = ref("");
+
+const isDark = computed(() => theme.global.current.value.dark);
+
+watch(name, () => {
+  nameError.value = "";
+});
+
+function handClass(move) {
+  return `far ${MOVE_ICONS[move]}`;
 }
+
+function hostGame() {
+  const playerName = name.value.trim();
+  if (!playerName) {
+    nameError.value = "Enter your name";
+    return;
+  }
+  store.commit("hostGame", { name: playerName, gameCode: newGameCode() });
+  router.push({ name: "game" });
+}
+
+function goJoin() {
+  router.push({ name: "join_game" });
+}
+
+function toggleTheme() {
+  theme.global.name.value = isDark.value ? "light" : "dark";
+}
+</script>
+
+<style scoped>
 .container {
   display: flex;
   align-items: center;
@@ -113,5 +116,14 @@ a {
 }
 ul {
   list-style-type: none;
+}
+.icon-hand {
+  font-size: 200px;
+  vertical-align: middle;
+}
+.theme-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 </style>

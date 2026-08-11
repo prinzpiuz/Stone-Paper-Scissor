@@ -14,10 +14,10 @@ This is a peer to peer game built on top of [p2p](https://github.com/subins2000/
 npm install
 ```
 
-#### Compiles and hot-reloads for development
+#### Starts the dev server with hot reload
 
 ```
-npm run serve
+npm run dev
 ```
 
 #### Compiles and minifies for production
@@ -34,4 +34,4 @@ npm run lint
 
 #### Customize configuration
 
-See [Configuration Reference](https://cli.vuejs.org/config/).
+See [Vite Configuration Reference](https://vite.dev/config/) and `vite.config.js`.

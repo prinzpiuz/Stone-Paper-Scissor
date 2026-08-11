@@ -1,7 +1,7 @@
 <template>
-  <v-app><router-view /> </v-app
-></template>
+  <v-app>
+    <router-view />
+  </v-app>
+</template>
 
-<script>
-export default {};
-</script>
+<script setup></script>
