@@ -1,6 +1,6 @@
 <template>
   <v-container class="fill-height">
-    <v-card class="mx-auto container" flat>
+    <v-card class="mx-auto flex-center" flat>
       <div class="pa-4">
         <v-text-field
           v-model="name"
@@ -22,7 +22,6 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useStore } from "vuex";
 import {
@@ -30,24 +29,17 @@ import {
   isGameCodeValid,
   normalizeGameCode
 } from "@/game";
+import { useFormField } from "@/composables/useFormField";
 
 const router = useRouter();
 const route = useRoute();
 const store = useStore();
 
+const { value: name, error: nameError } = useFormField(store.state.name);
 // A shared invite link carries the code in ?g=, so prefill it.
-const code = ref(normalizeGameCode(route.query.g));
-const name = ref(store.state.name);
-const nameError = ref("");
-const codeError = ref("");
-
-watch(name, () => {
-  nameError.value = "";
-});
-
-watch(code, () => {
-  codeError.value = "";
-});
+const { value: code, error: codeError } = useFormField(
+  normalizeGameCode(route.query.g)
+);
 
 function joinGame() {
   const playerName = name.value.trim();
@@ -63,11 +55,3 @@ function joinGame() {
   router.push({ name: "game" });
 }
 </script>
-
-<style scoped>
-.container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-</style>

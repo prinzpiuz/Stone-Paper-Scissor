@@ -6,7 +6,7 @@
         <i :class="handClass(move)" class="icon-hand" :style="{ color: MOVE_COLORS[move] }"></i>
       </template>
     </v-col>
-    <v-card class="mx-auto container" flat>
+    <v-card class="mx-auto flex-center" flat>
       <div class="pa-4">
         <v-text-field
           v-model="name"
@@ -22,7 +22,7 @@
         </v-col>
       </div>
     </v-card>
-    <div class="container">
+    <div class="flex-center">
       <ul>
         <li>
           <router-link :to="{ name: 'about' }" title="How to play">
@@ -54,36 +54,19 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex";
-import { useTheme } from "vuetify";
+import { REPO_URL } from "@/constants";
 import { MOVES, newGameCode } from "@/game";
-
-const REPO_URL = "https://github.com/prinzpiuz/Stone-Paper-Scissor";
-const MOVE_COLORS = { stone: "red", paper: "blue", scissors: "green" };
-const MOVE_ICONS = {
-  stone: "fa-hand-rock",
-  paper: "fa-hand-paper",
-  scissors: "fa-hand-scissors"
-};
+import { useFormField } from "@/composables/useFormField";
+import { useThemeToggle } from "@/composables/useThemeToggle";
+import { MOVE_COLORS, handClass } from "@/ui/moves";
 
 const router = useRouter();
 const store = useStore();
-const theme = useTheme();
 
-const name = ref(store.state.name);
-const nameError = ref("");
-
-const isDark = computed(() => theme.global.current.value.dark);
-
-watch(name, () => {
-  nameError.value = "";
-});
-
-function handClass(move) {
-  return `far ${MOVE_ICONS[move]}`;
-}
+const { isDark, toggleTheme } = useThemeToggle();
+const { value: name, error: nameError } = useFormField(store.state.name);
 
 function hostGame() {
   const playerName = name.value.trim();
@@ -98,18 +81,9 @@ function hostGame() {
 function goJoin() {
   router.push({ name: "join_game" });
 }
-
-function toggleTheme() {
-  theme.global.name.value = isDark.value ? "light" : "dark";
-}
 </script>
 
 <style scoped>
-.container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 a {
   margin-right: 10px;
   text-decoration: none;

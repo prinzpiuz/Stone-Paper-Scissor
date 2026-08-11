@@ -1,10 +1,10 @@
 <template>
-  <div class="container">
+  <div class="flex-center">
     <div>
-      <div class="container img_container">
+      <div class="flex-center img_container">
         <img :src="logo" />
       </div>
-      <div class="container"><h2>Rock Paper Scissor</h2></div>
+      <div class="flex-center"><h2>Rock Paper Scissor</h2></div>
       <p>
         This is a game built with
         <a href="https://vuejs.org/" target="_blank">Vue</a>+<a
@@ -39,7 +39,7 @@
           together, and a random hand is played for you if the timer runs out
         </li>
       </ul>
-      <div class="container">
+      <div class="flex-center">
         <router-link :to="{ name: 'register' }">Go Back</router-link>
       </div>
     </div>
@@ -51,11 +51,6 @@ import logo from "@/assets/android-chrome-192x192.png";
 </script>
 
 <style scoped>
-.container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .img_container {
   max-width: 200px;
 }

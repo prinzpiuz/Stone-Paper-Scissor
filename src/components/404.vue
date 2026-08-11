@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="flex-center">
     <div>
       <h3>sorry</h3>
       <h1>404, page not found.</h1>
@@ -7,11 +7,3 @@
     </div>
   </div>
 </template>
-
-<style scoped>
-.container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-</style>

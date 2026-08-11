@@ -1,3 +1,5 @@
+export const REPO_URL = "https://github.com/prinzpiuz/Stone-Paper-Scissor";
+
 // Seconds a player gets to pick a move before one is chosen at random.
 export const TIMER = 20;
 

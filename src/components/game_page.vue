@@ -83,42 +83,34 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex";
-import P2PT from "p2pt";
-import { GAME_ANNOUNCE_URLS, REVEAL_MS, TIMER } from "@/constants";
-import { DRAW, MOVES, WIN, isMove, outcome, randomMove } from "@/game";
-
-const MOVE_COLORS = { stone: "red", paper: "blue", scissors: "green" };
-const MOVE_ICONS = {
-  stone: "fa-hand-rock",
-  paper: "fa-hand-paper",
-  scissors: "fa-hand-scissors"
-};
+import { DRAW, MOVES, WIN, outcome } from "@/game";
+import { useP2PGame } from "@/composables/useP2PGame";
+import { MOVE_COLORS, handClass } from "@/ui/moves";
 
 const store = useStore();
 const router = useRouter();
 
-const copyText = ref("click to copy url");
-const timeLeft = ref(TIMER);
-const timedOut = ref(false);
-const opponentConnected = ref(false);
-const peerLost = ref(false);
-const myScore = ref(0);
-const opponentScore = ref(0);
-const myMove = ref(null);
-const opponentMove = ref(null);
-const revealed = ref(false);
+const {
+  timeLeft,
+  timedOut,
+  opponentConnected,
+  peerLost,
+  myScore,
+  opponentScore,
+  myMove,
+  opponentMove,
+  revealed,
+  submitMove
+} = useP2PGame({
+  gameCode: store.state.gameCode,
+  playerName: store.state.name,
+  onOpponentName: name => store.commit("setOpponentName", name)
+});
 
-let p2pt = null;
-let peer = null;
-let tickHandle = null;
-let revealHandle = null;
-// Rounds are numbered so a move that arrives while the previous result is still
-// on screen is held back instead of being applied to the wrong round.
-let roundNumber = 0;
-const bufferedMoves = new Map();
+const copyText = ref("click to copy url");
 
 const shareUrl = computed(() => {
   const href = router.resolve({
@@ -142,11 +134,6 @@ const roundResultText = computed(() => {
   return prefix + (result === WIN ? "You win this round" : "Opponent wins this round");
 });
 
-function handClass(move, chosen) {
-  // Solid hand marks the played move, outlined hands are the ones not picked.
-  return `${chosen === move ? "fas" : "far"} ${MOVE_ICONS[move]}`;
-}
-
 function copyShareUrl() {
   if (!navigator.clipboard) {
     copyText.value = "copy it manually";
@@ -161,133 +148,6 @@ function copyShareUrl() {
     }
   );
 }
-
-function send(payload) {
-  if (!peer) return;
-  p2pt.send(peer, JSON.stringify(payload));
-}
-
-function startRound() {
-  clearTimers();
-  myMove.value = null;
-  // A move for this round may already have arrived during the reveal pause.
-  opponentMove.value = bufferedMoves.get(roundNumber) ?? null;
-  bufferedMoves.delete(roundNumber);
-  revealed.value = false;
-  timedOut.value = false;
-  timeLeft.value = TIMER;
-  tickHandle = setInterval(tick, 1000);
-}
-
-function tick() {
-  timeLeft.value -= 1;
-  if (timeLeft.value > 0) return;
-
-  timeLeft.value = 0;
-  clearInterval(tickHandle);
-  tickHandle = null;
-  if (myMove.value === null) {
-    timedOut.value = true;
-    submitMove(randomMove());
-  }
-}
-
-function submitMove(move) {
-  // One move per round, and only once there is somebody to play against.
-  if (!opponentConnected.value || revealed.value || myMove.value !== null) return;
-
-  myMove.value = move;
-  send({ type: "move", round: roundNumber, move });
-  resolveRound();
-}
-
-function receiveMove(round, move) {
-  if (!isMove(move)) return;
-  if (round === roundNumber) {
-    opponentMove.value = move;
-    resolveRound();
-  } else if (round > roundNumber) {
-    bufferedMoves.set(round, move);
-  }
-}
-
-function resolveRound() {
-  if (myMove.value === null || opponentMove.value === null) return;
-
-  clearTimers();
-  revealed.value = true;
-
-  // Both peers score the same pair of moves, so the totals stay in sync
-  // without either side having to trust a score sent over the wire.
-  const result = outcome(myMove.value, opponentMove.value);
-  if (result === WIN) myScore.value += 1;
-  else if (result !== DRAW) opponentScore.value += 1;
-
-  roundNumber += 1;
-  revealHandle = setTimeout(startRound, REVEAL_MS);
-}
-
-function clearTimers() {
-  clearInterval(tickHandle);
-  clearTimeout(revealHandle);
-  tickHandle = null;
-  revealHandle = null;
-}
-
-function onPeerConnect(connectedPeer) {
-  // The room is a two player game: ignore anybody joining after the opponent.
-  if (peer && peer !== connectedPeer) return;
-  peer = connectedPeer;
-  peerLost.value = false;
-  send({ type: "hello", name: store.state.name });
-}
-
-function onPeerClose(closedPeer) {
-  if (closedPeer !== peer) return;
-  peer = null;
-  opponentConnected.value = false;
-  peerLost.value = true;
-  clearTimers();
-  // The reconnecting peer restarts at round 0, so drop any stale round state.
-  roundNumber = 0;
-  bufferedMoves.clear();
-}
-
-function onMessage(fromPeer, raw) {
-  if (fromPeer !== peer) return;
-
-  let msg;
-  try {
-    msg = JSON.parse(raw);
-  } catch (e) {
-    return;
-  }
-
-  if (msg.type === "hello") {
-    store.commit("setOpponentName", String(msg.name || "opponent").slice(0, 32));
-    if (!opponentConnected.value) {
-      opponentConnected.value = true;
-      startRound();
-    }
-  } else if (msg.type === "move") {
-    receiveMove(msg.round, msg.move);
-  }
-}
-
-onMounted(() => {
-  p2pt = new P2PT(GAME_ANNOUNCE_URLS, store.state.gameCode);
-  p2pt.on("peerconnect", onPeerConnect);
-  p2pt.on("peerclose", onPeerClose);
-  p2pt.on("msg", onMessage);
-  p2pt.start();
-});
-
-onBeforeUnmount(() => {
-  clearTimers();
-  if (p2pt) p2pt.destroy();
-  p2pt = null;
-  peer = null;
-});
 </script>
 
 <style scoped>

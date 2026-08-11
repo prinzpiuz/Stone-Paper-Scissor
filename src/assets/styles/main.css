@@ -1,0 +1,7 @@
+/* Shared layout helpers. Named flex-center rather than container so it does
+   not collide with Vuetify's own .container class. */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
